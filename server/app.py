@@ -1,25 +1,59 @@
 # server/app.py
+#!/usr/bin/env python3
 
-from flask import Flask
+from flask import Flask, make_response, jsonify
 from flask_migrate import Migrate
 
-from models import db
+from models import db, Earthquake
 
-# create a Flask application instance
 app = Flask(__name__)
-
-# configure the database connection to the local file app.db
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-
-# configure flag to disable modification tracking and use less memory
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.json.compact = False
 
-# create a Migrate object to manage schema modifications
 migrate = Migrate(app, db)
-
-# initialize the Flask application to use the database
 db.init_app(app)
 
+
+@app.route('/')
+def index():
+    body = {'message': 'Flask SQLAlchemy Lab 1'}
+    return make_response(body, 200)
+
+# Add views here
+@app.route('/earthquakes/<int:id>')
+def earthquake_by_id(id):
+    earthquake = Earthquake.query.filter(Earthquake.id == id).first()
+    if earthquake:
+        body = {
+            'id': earthquake.id,
+            'magnitude': earthquake.magnitude,
+            'location': earthquake.location,
+            'year': earthquake.year
+        }
+        status = 200
+    else:
+        body = {'message': f'Earthquake {id} not found.'}
+        status = 404
+
+    return make_response(body, status)
+
+@app.route('/earthquakes/magnitude/<float:magnitude>')
+def earthquake_by_magnitude(magnitude):
+    earthquakes = Earthquake.query.filter(Earthquake.magnitude >= magnitude).all()
+    quakes_list = [
+        {
+            "id": quake.id,
+            "location": quake.location,
+            "magnitude": quake.magnitude,
+            "year": quake.year
+        } for quake in earthquakes
+    ]
+    response = {
+        "count": len(quakes_list),
+        "quakes": quakes_list
+    }
+    return jsonify(response), 200
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
